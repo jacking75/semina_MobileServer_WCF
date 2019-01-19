@@ -1,0 +1,263 @@
+﻿
+FindAsync 
+http://api.mongodb.org/csharp/2.0/html/Overload_MongoDB_Driver_IMongoCollectionExtensions_FindAsync.htm
+
+[Test]
+public void Find_with_an_expression_should_call_collection_FindAsync_with_correct_options()
+{
+    var subject = CreateSubject();
+    var filter = BsonDocument.Parse("{Age:1}");
+    var projection = BsonDocument.Parse("{y:1}");
+    var sort = BsonDocument.Parse("{a:1}");
+    var options = new FindOptions
+    {
+        AllowPartialResults = true,
+        BatchSize = 20,
+        Comment = "funny",
+        CursorType = CursorType.TailableAwait,
+        MaxTime = TimeSpan.FromSeconds(3),
+        Modifiers = BsonDocument.Parse("{$snapshot: true}"),
+        NoCursorTimeout = true
+    };
+
+    var fluent = subject.Find(x => x.Age == 1, options)
+        .Project(projection)
+        .Sort(sort)
+        .Limit(30)
+        .Skip(40);
+
+    FilterDefinition<Person> actualFilter = null;
+    FindOptions<Person, BsonDocument> actualOptions = null;
+    subject.FindAsync(
+        Arg.Do<FilterDefinition<Person>>(x => actualFilter = x),
+        Arg.Do<FindOptions<Person, BsonDocument>>(x => actualOptions = x),
+        Arg.Any<CancellationToken>());
+
+    fluent.ToCursorAsync(CancellationToken.None).GetAwaiter().GetResult();
+
+    actualFilter.Should().BeOfType<ExpressionFilterDefinition<Person>>();
+    actualFilter.Render(subject.DocumentSerializer, subject.Settings.SerializerRegistry).Should().Be(filter);
+    actualOptions.AllowPartialResults.Should().Be(fluent.Options.AllowPartialResults);
+    actualOptions.BatchSize.Should().Be(fluent.Options.BatchSize);
+    actualOptions.Comment.Should().Be(fluent.Options.Comment);
+    actualOptions.CursorType.Should().Be(fluent.Options.CursorType);
+    actualOptions.Limit.Should().Be(fluent.Options.Limit);
+    actualOptions.MaxTime.Should().Be(fluent.Options.MaxTime);
+    actualOptions.Modifiers.Should().Be(fluent.Options.Modifiers);
+    actualOptions.NoCursorTimeout.Should().Be(fluent.Options.NoCursorTimeout);
+    actualOptions.Projection.Should().Be(fluent.Options.Projection);
+    actualOptions.Skip.Should().Be(fluent.Options.Skip);
+    actualOptions.Sort.Should().Be(fluent.Options.Sort);
+}
+
+
+class Widget
+{
+	[BsonElement("x")]
+	public int X { get; set; }
+
+	[BsonElement("y")]
+	public int Y { get; set; }
+}
+
+var builder = Builders<Widget>.Filter;
+var filter = builder.Eq(x => x.X, 10) & builder.Lt(x => x.Y, 20);
+
+// or
+
+var filter = builder.Eq("X", 10) & builder.Lt("Y", 20);
+
+// or
+
+var filter = builder.Eq("x", 10) & builder.Lt("y", 20);
+
+
+var filter = Builders<Widget>.Filter.Where(x => x.X == 10 && x.Y < 20);
+
+
+
+public class Post
+{
+	public IEnumerable<string> Tags { get; set; }
+}
+var filter = Builders<Post>.Filter.AnyEq(x => x.Tags, "mongodb");
+
+
+	
+- If your query returns a large number of documents, you should process them in a stream instead of converting them to a giant list. For example:
+var filter = new BsonDocument("x", new BsonDocument("$gte", 100));
+await collection.Find(filter).ForEachAsync(async document =>
+{
+	await ProcessDocumentAsync(document);
+});	
+
+
+< Projection Definition Builder >
+https://github.com/mongodb/mongo-csharp-driver/blob/master/src/MongoDB.Driver.Tests/ProjectionDefinitionBuilderTests.cs
+var projection = Builders<BsonDocument>.Projection.Include("x").Include("y").Exclude("_id");
+
+class Widget
+{
+	public ObjectId Id { get; set; }
+
+	[BsonElement("x")]
+	public int X { get; set; }
+
+	[BsonElement("y")]
+	public int Y { get; set; }
+}
+
+var projection = Builders<Widget>.Projection.Include("X").Include("Y").Exclude("Id");
+
+// or
+
+var projection = Builders<Widget>.Projection.Include("x").Include("y").Exclude("_id");
+
+// or
+
+var projection = Builders<Widget>.Projection.Include(x => x.X).Include(x => x.Y).Exclude(x => x.Id);
+
+// or
+
+var projection = Builders<Widget>.Projection.Expression(x => new { X = x.X, Y = x.Y });
+
+
+find
+https://github.com/mongodb/mongo-csharp-driver/blob/master/src/MongoDB.Driver.Tests/Linq/Translators/FindProjectionTranslatorTests.cs
+
+class Widget
+{
+	public ObjectId Id { get; set; }
+
+	[BsonElement("x")]
+	public int X { get; set; }
+
+	[BsonElement("y")]
+	public int Y { get; set; }
+}
+
+var projection = Builders<Widget>.Projection.Expression(x => new { X = x.X, Y = x.Y });
+
+var projection = Builders<Widget>.Projection.Expression(x => new { Sum = x.X + x.Y });
+
+var projection = Builders<Widget>.Projection.Expression(x => new { Avg = (x.X + x.Y) / 2 });
+
+var projection = Builders<Widget>.Projection.Expression(x => (x.X + x.Y) / 2);
+
+
+
+< Sorts >
+// method definition
+BsonDocument Sort(SortDefinition<BsonDocument> filter);
+
+// invocation
+var doc = Sort("{ x: 1 }");
+doc.ToJson().Should().Be("{x : 1 }");
+
+var doc = Sort(new BsonDocument("x", 1));
+doc.ToJson().Should().Be("{ x: 1 }");
+
+
+var builder = Builders<BsonDocument>.Sort;
+var sort = builder.Ascending("x").Descending("y");
+
+
+< Update >
+var result = await collection.UpdateOneAsync(
+	x => x.Name == "Tom",
+	Builders<Person>.Update.Set(x => x.Profession, "Musician"));
+
+UpdateOneAsync  http://api.mongodb.org/csharp/2.0/html/M_MongoDB_Driver_IMongoCollection_1_UpdateOneAsync.htm
+UpdateManyAsync   http://api.mongodb.org/csharp/2.0/html/M_MongoDB_Driver_IMongoCollection_1_UpdateManyAsync.htm
+	
+
+var tom = await collection.Find(x => x.Id == ObjectId.Parse("550c4aa98e59471bddf68eef"))
+	.SingleAsync();
+
+tom.Name = "Thomas";
+tom.Age = 43;
+tom.Profession = "Hacker";
+
+var result = await collection.ReplaceOneAsync(x => x.Id == tom.Id, tom);
+	
+	
+< Delete >
+var result = await collection.DeleteOneAsync(x => x.Id == tom.Id);
+
+DeleteOneAsync   http://api.mongodb.org/csharp/2.0/html/M_MongoDB_Driver_IMongoCollection_1_DeleteOneAsync.htm
+DeleteManyAsync  http://api.mongodb.org/csharp/2.0/html/M_MongoDB_Driver_IMongoCollection_1_DeleteManyAsync.htm
+
+
+
+var names = await db.GetCollection<Person>("people")
+	.Find(x => x.FirstName == "Jack")
+	.SortBy(x => x.Age)
+	.Project(x => x.FirstName + " " + x.LastName)
+	.ToListAsync();
+
+
+var totalAgeByLastName = await db.GetCollection<Person>("people")
+	.Aggregate()
+	.Match(x => x.FirstName == "Jack")
+	.GroupBy(x => x.LastName, g => new { _id = g.Key, TotalAge = g.Sum(x => x.Age)})
+	.ToListAsync();
+
+	
+var person = new ExpandoObject();
+person.FirstName = "Jane";
+person.Age = 12;
+person.PetNames = new List<dynamic> { "Sherlock", "Watson" }
+await db.GetCollection<dynamic>("people").InsertOneAsync(person);
+
+
+< Logging >
+var settings = new MongoClientSettings
+{
+	ClusterConfigurator = cb =>
+	{
+		var textWriter = TextWriter.Synchronized(new StreamWriter("mylogfile.txt"));
+		cb.AddListener(new LogListener(textWriter));
+	}
+};	
+	
+<Performance Counters >	
+Windows Performance Counters can be enabled to track statistics like average message size, number of connections in the pool, etc…	
+var settings = new MongoClientSettings
+{
+	ClusterConfigurator = cb =>
+	{
+		cb.UsePeformanceCounters("MyApplicationName");
+	}
+};
+
+var doc = new BsonDocument
+{
+	{ "a", 1 },
+	{ "b", new BsonArray
+		   {
+				new BsonDocument("c", 1)
+		   }}
+};
+
+
+
+class Person
+{
+	[BsonElement("fn")]
+	public string FirstName { get; set; }
+
+	[BsonElement("fn")]
+	public string LastName { get; set; }
+}
+
+public class GroceryList : MongoEntity<ObjectId>
+{
+    public FacebookList Owner { get; set; }
+    [BsonIgnore]
+    public bool IsOwner { get; set; }
+}
+
+
+
+http://mongodb.github.io/mongo-csharp-driver/2.0/reference/driver/definitions/
+http://api.mongodb.org/csharp/2.0/html/N_MongoDB_Driver.htm

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>WebSocket Chat</title>
+<script src="http://ajax.aspnetcdn.com/ajax/jquery/jquery-2.1.1.js"></script>
+<script type="text/javascript">
+    var ws;
+    $().ready(function ()
+    {
+        $("#btnConnect").click(function ()
+        {
+            $("#spanStatus").text("connecting");
+
+            ws = new WebSocket("ws://localhost:8080/hello");
+
+            ws.onopen = function ()
+            {
+                $("#spanStatus").text("connected");
+            };
+            ws.onmessage = function (evt)
+            {
+                $("#spanStatus").text(evt.data);
+            };
+            ws.onerror = function (evt)
+            {
+                $("#spanStatus").text(evt.message);
+            };
+            ws.onclose = function ()
+            {
+                $("#spanStatus").text("disconnected");
+            };
+        });
+        $("#btnSend").click(function ()
+        {
+            if (ws.readyState == WebSocket.OPEN)
+            {
+                var res = ws.send($("#textInput").val());
+            }
+            else
+            {
+                $("#spanStatus").text("Connection is closed");
+            }
+        });
+        $("#btnDisconnect").click(function ()
+        {
+            ws.close();
+        });
+    });
+</script>
+</head>
+<body>
+<input type="button" value="Connect" id="btnConnect" />
+<input type="button" value="Disconnect" id="btnDisconnect" /><br />
+<input type="text" id="textInput" />
+<input type="button" value="Send" id="btnSend" /><br />
+<span id="spanStatus">(display)</span>
+</body>
+</html>
